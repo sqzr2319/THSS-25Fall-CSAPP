@@ -1,0 +1,39 @@
+# 褚一枫 2024013328
+
+init:
+    irmovq Stack, %rsp
+    call Main
+    halt
+
+# Sample linked list
+.align 8
+ele1:
+    .quad 0x00a
+    .quad ele2
+ele2:
+    .quad 0x0b0
+    .quad ele3
+ele3:
+    .quad 0xc00
+    .quad 0
+
+Main:
+    irmovq ele1, %rdi
+    call rsum
+    ret
+
+rsum:                           # long rsum_list(list_ptr ls)
+    irmovq $0, %rax             # long val = 0;
+    andq %rdi, %rdi             # if (!ls)
+    je exit
+    pushq %rbx
+    mrmovq 0(%rdi), %rbx        # val = ls->value;
+    mrmovq 8(%rdi), %rdi        
+    call rsum                   # long rest = rsum_list(ls->next);
+    addq %rbx, %rax             # return val + rest;
+    popq %rbx
+exit:
+    ret
+
+.pos 0x100
+Stack:

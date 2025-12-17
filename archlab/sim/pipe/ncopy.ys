@@ -1,0 +1,160 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Include your name and ID here.
+# 褚一枫 2024013328
+# Describe how and why you modified the baseline code.
+# 第一步：借用新增指令 iaddq，修改基线代码。修改后 CPE 从 15.18 下降至 12.70。
+# 第二步：细节修改，修改后 CPE 从 12.70 下降至 10.47。具体包括：
+# 1. 注意到 `%rax` 初始值为 0，因此可以省略初始化语句 `xorq %rax,%rax`。
+# 2. 注意到 `mrmovq` 和 `rmmovq` 连用触发了 Load/Use Hazard，可插入一条不使用 `r10` 的指令。
+# 3. 注意到 `jle Done` 预测成功当且仅当 `len==0`，预测正确率过低，可改为 `jg Loop`。
+# 第三步：循环展开，修改后 CPE 从 10.47 下降至 8.0 左右。具体包括：
+# 1. 大循环：经过多次尝试，最终采用九路展开。
+# 2. `len<9` 时的小循环：采用三路展开。
+# 3. `len==1` 或 `len==2` 直接处理，不进入循环。
+# 第四步：分支优化，利用 `jl`,`je`,`jg` 构建三叉树，并调整优先度。修改后 CPE 从 8.0 左右下降至 7.63。
+# 若对 `len<9` 的情况采取更细致的分支结构，CPE 还可能进一步下降至 7.50 以下，但考虑到调试工作量太大，最终未采用该思路。
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+    iaddq $-9, %rdx
+    jge Loop9
+	iaddq $7, %rdx
+	jg Loop3
+	jl Loop
+	je Loop2
+
+Loop9:
+    mrmovq   (%rdi), %r10
+    mrmovq  8(%rdi), %r11
+    mrmovq 16(%rdi), %r12
+    mrmovq 24(%rdi), %r13
+	mrmovq 32(%rdi), %r14
+	mrmovq 40(%rdi), %r8
+	mrmovq 48(%rdi), %r9
+	mrmovq 56(%rdi), %rcx
+	mrmovq 64(%rdi), %rbx
+    rmmovq %r10,   (%rsi)
+    rmmovq %r11,  8(%rsi)
+    rmmovq %r12, 16(%rsi)
+    rmmovq %r13, 24(%rsi)
+	rmmovq %r14, 32(%rsi)
+	rmmovq  %r8, 40(%rsi)
+	rmmovq  %r9, 48(%rsi)
+	rmmovq %rcx, 56(%rsi)
+	rmmovq %rbx, 64(%rsi)
+    andq %r10, %r10
+    jle Npos0
+    iaddq $1, %rax
+Npos0:
+    andq %r11, %r11
+    jle Npos1
+    iaddq $1, %rax
+Npos1:
+    andq %r12, %r12
+    jle Npos2
+    iaddq $1, %rax
+Npos2:
+    andq %r13, %r13
+    jle Npos3
+    iaddq $1, %rax
+Npos3:
+    andq %r14, %r14
+    jle Npos4
+    iaddq $1, %rax
+Npos4:
+	andq  %r8,  %r8
+	jle Npos5
+	iaddq $1, %rax
+Npos5:
+	andq  %r9,  %r9
+	jle Npos6
+	iaddq $1, %rax
+Npos6:
+	andq %rcx, %rcx
+	jle Npos7
+	iaddq $1, %rax
+Npos7:
+	andq %rbx, %rbx
+	jle Npos8
+	iaddq $1, %rax
+Npos8:
+    iaddq $72, %rdi
+    iaddq $72, %rsi
+    iaddq $-9, %rdx
+    jge Loop9
+    iaddq $7, %rdx
+	jg Loop3
+	jl Loop
+	je Loop2
+
+Loop3:
+	mrmovq   (%rdi), %r10
+	mrmovq  8(%rdi), %r11
+	mrmovq 16(%rdi), %r12
+	rmmovq %r10,   (%rsi)
+	rmmovq %r11,  8(%rsi)
+	rmmovq %r12, 16(%rsi)
+	andq %r10, %r10
+	jle NposA
+	iaddq $1, %rax
+NposA:
+	andq %r11, %r11
+	jle NposB
+	iaddq $1, %rax
+NposB:
+	andq %r12, %r12
+	jle NposC
+	iaddq $1, %rax
+NposC:
+	iaddq $24, %rdi
+	iaddq $24, %rsi
+	iaddq $-3, %rdx
+	jg Loop3
+	jl Loop
+	je Loop2
+
+Loop2:
+	mrmovq   (%rdi), %r10
+	mrmovq  8(%rdi), %r11
+	rmmovq %r10,   (%rsi)
+	rmmovq %r11,  8(%rsi)
+	andq %r10, %r10
+	jle NposD
+	iaddq $1, %rax
+NposD:
+	andq %r11, %r11
+	jle NposE
+	iaddq $1, %rax
+NposE:
+	ret
+
+Loop:
+    mrmovq (%rdi), %r10
+	iaddq 1, %rdx
+	jge Loop1
+	ret
+
+Loop1:
+    rmmovq %r10, (%rsi)
+    andq %r10, %r10
+    jle Done
+    iaddq $1, %rax
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */

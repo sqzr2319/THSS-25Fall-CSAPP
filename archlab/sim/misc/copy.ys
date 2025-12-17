@@ -1,0 +1,45 @@
+# 褚一枫 2024013328
+
+init:
+    irmovq Stack, %rsp
+    call Main
+    halt
+
+.align 8
+# Source block
+src:
+    .quad 0x00a
+    .quad 0x0b0
+    .quad 0xc00
+# Destination block
+dest:
+    .quad 0x111
+    .quad 0x222
+    .quad 0x333
+
+Main:
+    irmovq src, %rdi
+    irmovq dest, %rsi
+    irmovq $3, %rdx
+    call copy
+    ret
+
+copy:                       # long copy_block(long *src, long *dest, long len)
+    irmovq $0, %rax         # long result = 0;
+    irmovq $8, %r8
+    irmovq $1, %r9
+    andq %rdx, %rdx
+    je exit
+loop:                       # while (len > 0)
+    mrmovq 0(%rdi), %rcx    
+    addq %r8, %rdi          # long val = *src++;
+    rmmovq %rcx, 0(%rsi)
+    addq %r8, %rsi          # *dest++ = val;
+    xorq %rcx, %rax         # result ^= val;
+    subq %r9, %rdx          # len--;
+    jne loop
+exit:
+    ret
+
+.pos 0x100
+Stack:
